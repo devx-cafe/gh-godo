@@ -28,5 +28,17 @@ echo "$PREFIX ✅ Setting up safe git repository to prevent dubious ownership er
 git config --local --get include.path | grep -e ../.gitconfig >/dev/null 2>&1 || git config --local --add include.path ../.gitconfig
 echo "$PREFIX ✅ Setting up git configuration to support .gitconfig in repo-root"
 
-echo "$PREFIX Leaving $(basename $0)"
+# Install Go dependencies if go.mod exists
+if [ -f "go.mod" ]; then
+    echo "$PREFIX Installing Go dependencies (go mod download)..."
+    go mod download
+
+    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | \
+    sh -s -- -b $(go env GOPATH)/bin latest
+    echo "$PREFIX ✅ Installing golangci-lint"
+
+fi
+
+
+echo "$PREFIX ✅ SUCCESS"
 exit 0

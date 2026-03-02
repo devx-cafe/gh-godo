@@ -1,0 +1,155 @@
+# golangci-lint configuration
+# Documentation: https://golangci-lint.run/usage/configuration/
+
+version: 2
+
+run:
+  # Timeout for analysis
+  timeout: 5m
+
+issues:
+  # Which dirs to exclude
+  exclude-dirs:
+    - vendor
+    - .tmp
+    - dist
+
+  # Maximum issues count per one linter
+  max-issues-per-linter: 0
+
+  # Maximum count of issues with the same text
+  max-same-issues: 0
+
+  # Exclude some linters from running on tests files
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+        - goconst
+
+linters:
+  enable:
+    # Default linters (enabled by default but listed explicitly)
+    - errcheck # Check for unchecked errors
+    - govet # Reports suspicious constructs
+    - ineffassign # Detect ineffectual assignments
+    - staticcheck # Static analysis
+    - unused # Check for unused code
+
+    # Additional linters
+    - misspell # Check for misspelled words
+    - revive # Fast, configurable linter (replaces golint)
+    - gosec # Security issues
+    - gocyclo # Cyclomatic complexity
+    - dupl # Code duplication
+    - goconst # Repeated strings that could be constants
+    - unconvert # Unnecessary type conversions
+    - unparam # Unused function parameters
+    - nakedret # Naked returns in long functions
+    - prealloc # Slice pre-allocation
+    - gocritic # Go critique
+    - gocognit # Cognitive complexity (similar to cyclomatic)
+
+linters-settings:
+  gocyclo:
+    # Minimal cyclomatic complexity to report
+    min-complexity: 15
+
+  gocognit:
+    # Minimal cognitive complexity to report
+    min-complexity: 20
+
+  dupl:
+    # Tokens count to trigger issue
+    threshold: 150
+
+  goconst:
+    # Minimal length of string constant
+    min-len: 3
+    # Minimal occurrences count to trigger
+    min-occurrences: 3
+
+  misspell:
+    locale: US
+
+  revive:
+    rules:
+      - name: exported
+        severity: warning
+      - name: var-naming
+        severity: warning
+      - name: package-comments
+        severity: warning
+      - name: indent-error-flow
+        severity: warning
+      - name: blank-imports
+        severity: warning
+      - name: context-as-argument
+        severity: warning
+      - name: dot-imports
+        severity: warning
+      - name: error-return
+        severity: warning
+      - name: error-strings
+        severity: warning
+      - name: error-naming
+        severity: warning
+      - name: increment-decrement
+        severity: warning
+      - name: var-declaration
+        severity: warning
+      - name: range
+        severity: warning
+      - name: receiver-naming
+        severity: warning
+      - name: time-naming
+        severity: warning
+      - name: unexported-return
+        severity: warning
+      - name: errorf
+        severity: warning
+      - name: empty-block
+        severity: warning
+      - name: superfluous-else
+        severity: warning
+      - name: unused-parameter
+        severity: warning
+      - name: unreachable-code
+        severity: warning
+      - name: redefines-builtin-id
+        severity: warning
+
+  gosec:
+    # Select which checks to run
+    includes:
+      - G101 # Look for hard coded credentials
+      - G102 # Bind to all interfaces
+      - G103 # Audit the use of unsafe block
+      - G104 # Audit errors not checked
+      - G106 # Audit the use of ssh.InsecureIgnoreHostKey
+      - G107 # Url provided to HTTP request as taint input
+      - G201 # SQL query construction using format string
+      - G202 # SQL query construction using string concatenation
+      - G203 # Use of unescaped data in HTML templates
+      - G204 # Audit use of command execution
+      - G301 # Poor file permissions used when creating a directory
+      - G302 # Poor file permissions used with chmod
+      - G303 # Creating tempfile using a predictable path
+      - G304 # File path provided as taint input
+      - G305 # File traversal when extracting zip archive
+      - G401 # Detect the usage of DES, RC4, MD5 or SHA1
+      - G402 # Look for bad TLS connection settings
+      - G403 # Ensure minimum RSA key length of 2048 bits
+      - G404 # Insecure random number source (rand)
+      - G501 # Import blocklist: crypto/md5
+      - G502 # Import blocklist: crypto/des
+      - G503 # Import blocklist: crypto/rc4
+      - G504 # Import blocklist: net/http/cgi
+      - G505 # Import blocklist: crypto/sha1
+
+  nakedret:
+    # Maximum number of lines for a naked return
+    max-func-lines: 30

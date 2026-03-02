@@ -1,0 +1,71 @@
+name: Build Go Binary
+description: Build a Go binary for a specific platform (OS/Architecture). Assumes workspace and Go environment are already set up.
+
+inputs:
+  os:
+    description: Target operating system (linux, darwin, windows)
+    required: true
+  arch:
+    description: Target architecture (amd64, arm64)
+    required: true
+  ext:
+    description: File extension (e.g., '.exe' for Windows)
+    required: false
+    default: ''
+  binary-name:
+    description: Prefix for the binary name (e.g., 'godo' produces godo-linux-amd64)
+    required: true
+  upload-artifact:
+    description: Upload the built binary as an artifact
+    required: false
+    default: 'true'
+
+outputs:
+  artifact-name:
+    description: Name of the uploaded artifact
+    value: ${{ steps.build.outputs.artifact-name }}
+  binary-path:
+    description: Path to the built binary
+    value: ${{ steps.build.outputs.binary-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Build binary
+      id: build
+      shell: bash
+      env:
+        GOOS: ${{ inputs.os }}
+        GOARCH: ${{ inputs.arch }}
+        BINARY_NAME: ${{ inputs.binary-name }}
+        EXT: ${{ inputs.ext }}
+      run: |
+        # Create output directory
+        mkdir -p dist
+        
+        # Build binary
+        OUTPUT_FILE="dist/${BINARY_NAME}-${{ inputs.os }}-${{ inputs.arch }}${EXT}"
+        echo "Building for ${{ inputs.os }}/${{ inputs.arch }}..."
+        go build -ldflags="-s -w" -o "$OUTPUT_FILE" .
+        
+        if [ $? -eq 0 ]; then
+          echo "✓ Built ${OUTPUT_FILE}"
+          ls -lh "$OUTPUT_FILE"
+          
+          # Set outputs
+          echo "artifact-name=${{ inputs.binary-name }}-${{ inputs.os }}-${{ inputs.arch }}" >> $GITHUB_OUTPUT
+          echo "binary-path=$OUTPUT_FILE" >> $GITHUB_OUTPUT
+        else
+          echo "✗ Failed to build for ${{ inputs.os }}/${{ inputs.arch }}"
+          exit 1
+        fi
+
+    - name: Upload artifact
+      if: inputs.upload-artifact == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.build.outputs.artifact-name }}
+        path: ${{ steps.build.outputs.binary-path }}
+        retention-days: 1
+
+

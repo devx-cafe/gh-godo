@@ -33,6 +33,22 @@ jobs:
 # Add all additional jobs you want to run on the ready branch before the merge-to-trunk job
 # and make merge-to-trunk depend on them (like it depends on trunk-worthy) to ensure they run before the merge.
 
+  mark-trunk-worthy:
+    name: Trunk-worthy
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+      contents: read
+    needs: 
+      - trunk-worthy
+    env:
+      GITHUB_TOKEN: ${{ secrets.READY_PUSHER }}
+    steps:
+      - name: Mark trunk-worthy
+        run: |
+          set -e
+          gh ext install lakruzz/gh-set-status
+          gh set-status success "Is trunk-worthy" trunk-worthy
 
   merge-to-trunk:
     name: Merge to trunk

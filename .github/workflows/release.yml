@@ -16,7 +16,47 @@ on:
         type: string
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+          - os: linux
+            arch: arm64
+          - os: darwin
+            arch: amd64
+          - os: darwin
+            arch: arm64
+          - os: windows
+            arch: amd64
+            ext: .exe
+          - os: windows
+            arch: arm64
+            ext: .exe
+
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0   # Fetch full history (needed for release notes generation)
+          fetch-tags: true # Ensure tags are fetched (needed for release notes generation)
+
+      - name: Set up runner environment
+        uses: ./.github/actions/prep-runner
+
+      - name: Build Go binary for ${{ matrix.os }}-${{ matrix.arch }}
+        uses: ./.github/actions/build-go-binaries
+        with:
+          binary-name: godo
+          os: ${{ matrix.os }}
+          arch: ${{ matrix.arch }}
+          ext: ${{ matrix.ext || '' }}
+
   release:
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -27,6 +67,76 @@ jobs:
           ref: ${{ github.event.inputs.tag || github.ref }}
           fetch-depth: 0   # Fetch full history (needed for release notes generation)
           fetch-tags: true # Ensure tags are fetched (needed for release notes generation)
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Prepare release artifacts
+        run: |
+          mkdir -p release
+          find artifacts -type f -exec mv {} release/ \;
+          ls -la release/
+
+      - name: Create release notes
+        id: release_notes
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          gh ext install devx-cafe/gh-tt
+          mkdir -p .tmp
+          gh tt semver note --filename .tmp/RELEASENOTES.md
+          echo "Generating release notes..."
+          cat .tmp/RELEASENOTES.md >> $GITHUB_STEP_SUMMARY
+
+        # Nice to have a version.txt in the release assets, so we know what commit and tag the release was built from
+      - name: version.txt
+        run: |
+          mkdir -p release
+          echo "Build from ${{ github.repository }}" > release/version.txt
+          echo "Tag: ${{ github.ref_name }}" >> release/version.txt
+          echo "Commit: ${{ github.sha }}" >> release/version.txt
+
+      - name: Determine release type
+        id: release_type
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          # Check if tag contains prerelease markers (- or +) after SemVer core
+          # Lines 5-6 in trigger: [0-9]+.[0-9]+.[0-9]+* and [a-zA-Z]+[0-9]+.[0-9]+.[0-9]+*
+          if [[ $TAG =~ ^[a-zA-Z]*[0-9]+\.[0-9]+\.[0-9]+([-]) ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "is_draft=false" >> $GITHUB_OUTPUT
+            echo "Release type: PRERELEASE" 
+          elif [[ $TAG =~ ^[a-zA-Z]*[0-9]+\.[0-9]+\.[0-9]+([+]) ]]; then
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "is_draft=true" >> $GITHUB_OUTPUT
+            echo "Release type: DRAFT" 
+          else 
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "is_draft=false" >> $GITHUB_OUTPUT
+            echo "Release type: STABLE"
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          files: release/*
+          body_path: .tmp/RELEASENOTES.md
+          draft: ${{ steps.release_type.outputs.is_draft }}
+          prerelease: ${{ steps.release_type.outputs.is_prerelease }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+
+
+---
+    release:
+      runs-on: ubuntu-latest
+      needs: build
+    
+      steps:
 
       - name: Determine release type
         id: release_type

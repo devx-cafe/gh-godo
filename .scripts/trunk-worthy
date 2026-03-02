@@ -46,8 +46,8 @@
 #          .scripts/trunk-worthy mark-pending
 #     ---
 
-CHECK_NAMES=("cspell" "markdownlint" "prettier")   # Checks to run in the first wave (required)
-CHECK_NAMES_2ND=( )   # 2nd wave of checks that only run if the first wave passes (optional)
+CHECK_NAMES=("cspell" "markdownlint" "prettier" "build")   # Checks to run in the first wave (required)
+CHECK_NAMES_2ND=("coverage")   # 2nd wave of checks that only run if the first wave passes (optional)
 CHECK_NAMES_3RD=( )   # 3rd wave of checks that only run if the 2nd wave passes (optional)
 
 # Mapping of names (above) to their respective commands
@@ -55,10 +55,14 @@ declare -A CHECK_COMMANDS=(
     [cspell]="cspell"
     [markdownlint]="markdownlint-cli2"
     [prettier]="prettier --check ."
+    [coverage]="make coverage"
+    [build]="make build" 
 )
 
 # Mapping for display names (optional) No entry means it will just capitalize the name from CHECK_NAMES
 declare -A DISPLAY_NAMES=(
+    [coverage]="Unit Test with coverage"
+    [build]="Build (for this OS/Arch only)"
 )
 
 ####################################################
