@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'           # Matches Core SemVer versions - without a prefix: 0.9.0, 1.2.3
+      - '[a-zA-Z]+[0-9]+.[0-9]+.[0-9]+'  # Matches Core SemVer versions - with a prefix: v1.0.0, ver1.0.0, RC1.0.0
+      - '[0-9]+.[0-9]+.[0-9]+*'          # Matches Build and Prerelease SemVer versions - without a prefix: 0.9.0+1.03ed4d1, 0.9.0-alpha1, 0.9.0-alpha1+1.03ed4d1
+      - '[a-zA-Z]+[0-9]+.[0-9]+.[0-9]+*' # Matches Build and Prerelease SemVer versions - with a prefix: v0.9.0+1.03ed4d1, ver0.9.0-alpha1, RC0.9.0-alpha1+1.03ed4d1
+
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g., v1.0.0 or 1.0.0)"
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0   # Fetch full history (needed for release notes generation)
+          fetch-tags: true # Ensure tags are fetched (needed for release notes generation)
+
+      - name: Determine release type
+        id: release_type
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          # Check if tag contains prerelease markers (- or +) after SemVer core
+          # Lines 5-6 in trigger: [0-9]+.[0-9]+.[0-9]+* and [a-zA-Z]+[0-9]+.[0-9]+.[0-9]+*
+          if [[ $TAG =~ ^[a-zA-Z]*[0-9]+\.[0-9]+\.[0-9]+([-]) ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "is_draft=false" >> $GITHUB_OUTPUT
+            echo "Release type: PRERELEASE" 
+          elif [[ $TAG =~ ^[a-zA-Z]*[0-9]+\.[0-9]+\.[0-9]+([+]) ]]; then
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "is_draft=true" >> $GITHUB_OUTPUT
+            echo "Release type: DRAFT" 
+          else 
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "is_draft=false" >> $GITHUB_OUTPUT
+            echo "Release type: STABLE"
+          fi
+
+      - name: Create release notes
+        id: release_notes
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          gh ext install devx-cafe/gh-tt
+          mkdir -p .tmp/release
+          gh tt semver note --filename .tmp/release/RELEASENOTES.md
+          echo "Generating release notes..."
+          cat .tmp/release/RELEASENOTES.md >> $GITHUB_STEP_SUMMARY
+
+
+        # Build the release assets - and collects the "packkage". to release
+      - name: collect artifacts
+        run: |
+          mkdir -p .tmp/release
+          cp ./README.md .tmp/release/
+                    
+        # Nice to have a version.txt in the release assets, so we know what commit and tag the release was built from
+      - name: version.txt
+        run: |
+          mkdir -p .tmp/release
+          echo "Build from ${{ github.repository }}" > .tmp/release/version.txt
+          echo "Tag: ${{ github.ref_name }}" >> .tmp/release/version.txt
+          echo "Commit: ${{ github.sha }}" >> .tmp/release/version.txt
+
+        # Package the release assets - in this case we just tar.gz the release folder,
+        # but you should design it to any packaging needed for the specific project
+      - name: Package release assets
+        run: |
+          mkdir -p .tmp/release
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          tar -czf ".tmp/takt-actions-${TAG}.tar.gz" -C .tmp/release .
+
+        # This files are "flattend" in the release, so If you need to keep the folder structure, 
+        # you should create an archive (tar ball) ...wi did that in the previous step, so now we just need 
+        # to upload the archive as the release asset
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          files: |
+            ./.tmp/takt-actions-${{ github.event.inputs.tag || github.ref_name }}.tar.gz
+            ./.tmp/release/version.txt
+          body_path: .tmp/release/RELEASENOTES.md
+          draft: ${{ steps.release_type.outputs.is_draft }}
+          prerelease: ${{ steps.release_type.outputs.is_prerelease }}
+          token: ${{ secrets.GITHUB_TOKEN }}

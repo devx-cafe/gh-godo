@@ -84,7 +84,7 @@ get_display_name() {
 
 # Function to mark all checks as pending in GitHub Actions
 mark_pending_statuses() {
-    gh extension install lakruzz/gh-set-status
+    gh ext list | grep "lakruzz/gh-set-status"  || gh extension install lakruzz/gh-set-status > /dev/null 2>&1 || true
 
     for check in "${CHECK_NAMES[@]}"; do
         gh set-status pending "$(get_display_name $check) check" "$check"
@@ -130,12 +130,14 @@ print_status() {
 
     # Be more verbose in GitHub Actions and set the status for each check
     if [ "$GITHUB_ACTION_RUN" -eq 1 ]; then
+        gh ext list | grep "lakruzz/gh-set-status"  || gh extension install lakruzz/gh-set-status > /dev/null 2>&1 || true
+
         if [ "${CHECK_STATUS[$name]}" -eq 0 ]; then
             gh set-status success "$(get_display_name $name) check passed" "$name"
-            echo "   $(get_display_name $name) check passed" >> $GITHUB_STEP_SUMMARY
+            echo "✅ $(get_display_name $name) check passed" >> $GITHUB_STEP_SUMMARY
         else
             gh set-status failure "$(get_display_name $name) check failed" "$name"
-            echo "   $(get_display_name $name) check failed" >> $GITHUB_STEP_SUMMARY
+            echo "❌ $(get_display_name $name) check failed" >> $GITHUB_STEP_SUMMARY
         fi
     fi  
 }
@@ -152,7 +154,7 @@ show_error() {
     # Be more verbose in GitHub Actions and show check output in summary
     if [ "$GITHUB_ACTION_RUN" -eq 1 ]; then
         if [ "${CHECK_STATUS[$name]}" -ne 0 ]; then
-            echo "   $(get_display_name $name) check output:" >> $GITHUB_STEP_SUMMARY
+            echo "❌ $(get_display_name $name) check output:" >> $GITHUB_STEP_SUMMARY
             cat "${CHECK_OUT[$name]}" >> $GITHUB_STEP_SUMMARY
         fi
     fi

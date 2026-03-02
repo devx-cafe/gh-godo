@@ -1,0 +1,21 @@
+name: Stage
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  stage-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      
+      - name: Mark the spot for stage deployment
+        run: |
+          echo "Stage deployment placeholder - ready for implementation"
+          echo "Stage deployment placeholder - ready for implementation" >> $GITHUB_STEP_SUMMARY
+          echo "go to \`.github/workflows/stage.yml\` and fill in the blanks..." >> .stage_deploy_placeholder
+
+# A blank sheet!
+# Excited to see what yopu come up with!

@@ -1,0 +1,36 @@
+name: wrapup
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - "[0-9]*" # Isue branches
+      - "copilot/*" # Copilot running in Agentic mode pushes branches with this prefix as default
+
+concurrency:
+  group: "wrapup"
+  cancel-in-progress: false
+
+
+jobs:
+  trunk-worthy:
+    name: Check trunk worthyness
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: read
+      statuses: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Mark pending
+        run: ./.scripts/trunk-worthy mark-pending
+
+      - name: Set up runner environment
+        uses: ./.github/actions/prep-runner 
+
+      - name: Test trunk worthyness - mark statusses
+        run: ./.scripts/trunk-worthy  
